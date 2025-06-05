@@ -27,7 +27,14 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   }
 
   void _setupFileReceiver() {
-    // Ici vous devriez implémenter la logique pour recevoir les fichiers
+    _nearbyService.onFileReceived.listen((filePath) {
+      setState(() {
+        _receivedFilePath = filePath;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Fichier reçu: ${filePath.split('/').last}')),
+      );
+    });
   }
 
   @override

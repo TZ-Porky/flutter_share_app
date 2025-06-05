@@ -31,7 +31,21 @@ class _SendScreenState extends State<SendScreen> {
 
   void _startDiscovery() async {
     await _nearbyService.startDiscovering();
-    // Ici vous devriez implémenter la logique pour détecter les appareils
+    _nearbyService.onDeviceDiscovered.listen((device) {
+      setState(() {
+        if (!_devices.any((d) => d['id'] == device['id'])) {
+          _devices.add(device);
+        }
+      });
+    });
+    _nearbyService.onDeviceLost.listen((deviceId) {
+      setState(() {
+        _devices.removeWhere((device) => device['id'] == deviceId);
+        if (_selectedDeviceId == deviceId) {
+          _selectedDeviceId = null;
+        }
+      });
+    });
   }
 
   void _onShake() {
