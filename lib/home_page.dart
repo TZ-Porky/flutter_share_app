@@ -1,29 +1,40 @@
 import 'package:flutter/material.dart';
+import 'discovery_page.dart';
+import 'receive_page.dart';
+import 'send_page.dart'; // Nous allons créer ce fichier
 
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mini Xender')),
+      appBar: AppBar(title: const Text("Accueil")),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/send'),
-              child: const Text('Envoyer un fichier'),
+              child: const Text("📤 Envoyer un fichier"),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SendPage()),
+              ),
             ),
-            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/receive'),
-              child: const Text('Recevoir un fichier'),
+              child: const Text("📥 Recevoir un fichier"),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ReceivePage()),
+              ),
             ),
-            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/discovery'),
-              child: const Text('Détecter les serveurs'),
+              child: const Text("🛰️ Shake to Send"),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DiscoveryPage()),
+              ),
             ),
           ],
         ),
