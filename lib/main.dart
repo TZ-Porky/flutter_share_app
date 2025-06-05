@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:shareapp/services/nearby_service.dart';
-import 'package:shareapp/services/shake_service.dart';
-import 'package:shareapp/screens/home_screen.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'home_page.dart';
+import 'receive_page.dart';
+import 'send_page.dart'; // Nous allons créer ce fichier
+
 
 void main() {
   runApp(const MyApp());
@@ -9,16 +11,17 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Shake File Transfer',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: const HomeScreen(),
+      title: 'Mini Xender',
+      theme: ThemeData.dark(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const HomePage(),
+        '/send': (context) => const SendPage(),
+        '/receive': (context) => const ReceivePage(),
+      },
     );
   }
 }
