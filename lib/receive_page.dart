@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -20,7 +21,30 @@ class _ReceivePageState extends State<ReceivePage> {
   void initState() {
     super.initState();
     _initializeServer();
-    _askPermissions();
+    //_askPermissions();
+    _broadcastPresence();
+  }
+
+  void _broadcastPresence() async {
+    final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+    Timer.periodic(const Duration(seconds: 2), (_) {
+      socket.send(
+        'FILE_SERVER_HERE'.codeUnits,
+        InternetAddress('255.255.255.255'),
+        5001,
+      );
+    });
+  }
+
+  String getDownloadPath(String filename) {
+    if (Platform.isAndroid) {
+      return '/storage/emulated/0/Download/$filename';
+    } else if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+      final home = Platform.environment['HOME'] ?? '/tmp';
+      return '$home/Downloads/$filename';
+    } else {
+      return 'received_$filename';
+    }
   }
 
   void _askPermissions() async {

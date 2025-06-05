@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'discovery_page.dart';
 import 'home_page.dart';
 import 'receive_page.dart';
 import 'send_page.dart'; // Nous allons créer ce fichier
-
 
 void main() {
   runApp(const MyApp());
@@ -21,6 +21,7 @@ class MyApp extends StatelessWidget {
         '/': (context) => const HomePage(),
         '/send': (context) => const SendPage(),
         '/receive': (context) => const ReceivePage(),
+        '/discovery': (context) => const DiscoveryPage(),
       },
     );
   }

@@ -20,6 +20,11 @@ class HomePage extends StatelessWidget {
               onPressed: () => Navigator.pushNamed(context, '/receive'),
               child: const Text('Recevoir un fichier'),
             ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => Navigator.pushNamed(context, '/discovery'),
+              child: const Text('Détecter les serveurs'),
+            ),
           ],
         ),
       ),
