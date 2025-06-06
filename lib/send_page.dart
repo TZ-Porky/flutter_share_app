@@ -384,7 +384,7 @@ class _SendPageState extends State<SendPage> {
                                 child: const Text("Envoyer"),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green,
-                                  foregroundColor: const Color.fromARGB(255, 134, 133, 133),
+                                  foregroundColor: Colors.white,
                                 ),
                               ),
                             ),

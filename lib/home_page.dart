@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'discovery_page.dart';
+import 'file_selection_page.dart';
 import 'receive_page.dart';
 import 'send_page.dart'; // Nous allons créer ce fichier
-
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -17,24 +17,29 @@ class HomePage extends StatelessWidget {
           children: [
             ElevatedButton(
               child: const Text("📤 Envoyer un fichier"),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SendPage()),
-              ),
+              onPressed:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SendPage()),
+                  ),
             ),
             ElevatedButton(
               child: const Text("📥 Recevoir un fichier"),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ReceivePage()),
-              ),
+              onPressed:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReceivePage()),
+                  ),
             ),
             ElevatedButton(
               child: const Text("🛰️ Shake to Send"),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DiscoveryPage()),
-              ),
+              onPressed:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FileSelectionPage(),
+                    ),
+                  ),
             ),
           ],
         ),
