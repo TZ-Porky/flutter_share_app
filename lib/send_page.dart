@@ -1,17 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
-import 'dart:math'; // Add this import at the top of the file
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:video_thumbnail/video_thumbnail.dart'; // Import pour les miniatures vidéo
-import 'package:path/path.dart' as p; // Import pour les opérations sur les chemins
+import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:path/path.dart' as p;
 
 // Définir un enum pour les modes d'envoi
-enum SendMode {
-  ipAddress,
-  serverDetection,
-}
+enum SendMode { ipAddress, serverDetection }
 
 class SendPage extends StatefulWidget {
   const SendPage({super.key});
@@ -21,18 +19,22 @@ class SendPage extends StatefulWidget {
 }
 
 class _SendPageState extends State<SendPage> {
-  File? selectedFile;
-  List<String> discoveredServers = [];
-  RawDatagramSocket? udpSocket;
-  final TextEditingController _ipController = TextEditingController();
-  SendMode _currentSendMode = SendMode.serverDetection;
-  // Variable pour stocker le chemin de la miniature générée (pour les vidéos)
-  String? _videoThumbnailPath;
+  File? selectedFile; // Fichier sélectionné par l'utilisateur
+  List<String> discoveredServers =
+      []; // Liste des serveurs sur écoute rescencés
+  RawDatagramSocket? udpSocket; // Socket UDP pour le broadcast
+  final TextEditingController _ipController =
+      TextEditingController(); // Contenu du champ d'adresse IP
+  SendMode _currentSendMode =
+      SendMode.serverDetection; // Mode d'envoi de fichier
+  String?
+  _videoThumbnailPath; // Chemin pour stocker le chemin de la maniature générée pour la vidéo
 
   @override
   void initState() {
     super.initState();
     _listenForServers();
+    _startServerCleanupTimer();
   }
 
   @override
@@ -40,30 +42,78 @@ class _SendPageState extends State<SendPage> {
     udpSocket?.close();
     _ipController.dispose();
     // Supprimer la miniature vidéo temporaire si elle existe
-    if (_videoThumbnailPath != null && File(_videoThumbnailPath!).existsSync()) {
+    if (_videoThumbnailPath != null &&
+        File(_videoThumbnailPath!).existsSync()) {
       File(_videoThumbnailPath!).deleteSync();
     }
     super.dispose();
   }
 
+  // Méthode pour écouter les serveurs disponibles sur le réseau
   Future<void> _listenForServers() async {
-    udpSocket?.close();
-    udpSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 5001);
-    udpSocket?.listen((event) {
-      if (event == RawSocketEvent.read) {
-        final datagram = udpSocket?.receive();
-        if (datagram != null) {
-          final message = String.fromCharCodes(datagram.data);
-          final ip = datagram.address.address;
-          if (message == 'FILE_SERVER_HERE' && !discoveredServers.contains(ip)) {
-            setState(() => discoveredServers.add(ip));
-            _showSnackBar('Nouveau serveur détecté: $ip', Colors.green);
+    try {
+      udpSocket?.close();
+
+      // Binding spécifique pour Linux
+      udpSocket = await RawDatagramSocket.bind(
+        Platform.isLinux ? InternetAddress.anyIPv4 : InternetAddress.anyIPv4,
+        8889,
+        reuseAddress: true,
+        reusePort: Platform.isLinux, // Crucial pour Linux
+      );
+      udpSocket!.broadcastEnabled = true;
+
+      debugPrint('Mode écoute UDP activé sur ${udpSocket!.address.address}');
+
+      udpSocket!.listen(
+        (RawSocketEvent event) {
+          if (event == RawSocketEvent.read) {
+            final datagram = udpSocket!.receive();
+            if (datagram != null) {
+              final message = String.fromCharCodes(datagram.data);
+              debugPrint('Message reçu: $message');
+
+              final parts = message.split('|');
+              if (parts.length == 2 && parts[0] == 'FILE_SERVER_HERE') {
+                final serverIp = parts[1];
+                if (!discoveredServers.contains(serverIp)) {
+                  setState(() {
+                    discoveredServers.add(serverIp);
+                    discoveredServers = List.from(
+                      discoveredServers,
+                    ); // Force refresh
+                  });
+                  _showSnackBar('Serveur détecté: $serverIp', Colors.green);
+                }
+              }
+            }
           }
-        }
+        },
+        onError: (error) {
+          debugPrint('Erreur socket UDP: $error');
+        },
+      );
+    } catch (e) {
+      debugPrint('Erreur initialisation écoute UDP: $e');
+    }
+  }
+
+  // Ajoutez cette méthode pour nettoyer périodiquement
+  void _startServerCleanupTimer() {
+    Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
       }
+
+      setState(() {
+        // Supprime les serveurs qui n'ont pas été mis à jour récemment
+        discoveredServers = discoveredServers;
+      });
     });
   }
 
+  // Méthode pour choisir un fichier
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles();
     if (result != null) {
@@ -71,7 +121,10 @@ class _SendPageState extends State<SendPage> {
         selectedFile = File(result.files.single.path!);
         _videoThumbnailPath = null; // Réinitialiser l'aperçu vidéo précédent
       });
-      _showSnackBar('Fichier sélectionné: ${selectedFile!.path.split('/').last}', Colors.blue);
+      _showSnackBar(
+        'Fichier sélectionné: ${selectedFile!.path.split('/').last}',
+        Colors.blue,
+      );
 
       // Tenter de générer une miniature si c'est une vidéo
       if (selectedFile != null && _isVideoFile(selectedFile!.path)) {
@@ -89,7 +142,14 @@ class _SendPageState extends State<SendPage> {
   // Helper pour vérifier si c'est un fichier image
   bool _isImageFile(String path) {
     final extension = p.extension(path).toLowerCase();
-    return ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(extension);
+    return [
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.gif',
+      '.bmp',
+      '.webp',
+    ].contains(extension);
   }
 
   // Helper pour générer la miniature vidéo
@@ -107,33 +167,50 @@ class _SendPageState extends State<SendPage> {
     });
   }
 
+  // Méthode pour envoyer le fichier à une adresse IP spécifique
   Future<void> _sendFile(String hostIP) async {
     if (selectedFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez d’abord sélectionner un fichier.'),
-        ),
-      );
+      _showSnackBar('Veuillez d’abord sélectionner un fichier.', Colors.orange);
       return;
     }
 
     try {
-      final socket = await Socket.connect(hostIP, 5000, timeout: const Duration(seconds: 10));
-      final stream = selectedFile!.openRead();
-      await stream.pipe(socket);
-      await socket.flush();
-      await socket.close();
+      final socket = await Socket.connect(
+        hostIP,
+        5000,
+        timeout: const Duration(seconds: 10),
+      );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ Fichier envoyé à $hostIP')),
-      );
+      final fileName = p.basename(
+        selectedFile!.path,
+      ); // Extrait le nom du fichier
+      final fileNameBytes = utf8.encode(
+        '$fileName\n',
+      ); // Convertir le nom du fichier en octets avec un saut de ligne
+
+      // Envoyer d'abord le nom du fichier
+      socket.add(fileNameBytes); // Utilisez add() pour les octets bruts
+
+      // Ensuite, envoyer les octets du fichier.
+      // openRead() renvoie un Stream<List<int>>.
+      // pipe() est la bonne méthode pour transférer ce Stream directement au socket.
+      final fileStream = selectedFile!.openRead();
+      await fileStream.pipe(
+        socket,
+      ); // Le flux du fichier sera maintenant envoyé après le nom
+
+      // Assurez-vous que toutes les données sont envoyées et que le socket est fermé proprement.
+      await socket.flush(); // Force l'envoi des données mises en tampon
+      await socket.close(); // Ferme la connexion
+
+      _showSnackBar('✅ Fichier "$fileName" envoyé à $hostIP', Colors.green);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Erreur d\'envoi à $hostIP : $e')),
-      );
+      print('Erreur d\'envoi à $hostIP : $e'); // Log pour le débogage
+      _showSnackBar('❌ Erreur d\'envoi à $hostIP : $e', Colors.red);
     }
   }
 
+  // Méthode pour afficher un snackbar ( A remplacer par une interface plus jolie )
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -147,7 +224,7 @@ class _SendPageState extends State<SendPage> {
   // Widget pour afficher l'aperçu du fichier
   Widget _buildFilePreview() {
     if (selectedFile == null) {
-      return const SizedBox.shrink(); // Ne rien afficher si aucun fichier n'est sélectionné
+      return const SizedBox.shrink();
     }
 
     final String fileName = p.basename(selectedFile!.path);
@@ -157,23 +234,37 @@ class _SendPageState extends State<SendPage> {
 
     if (_isImageFile(selectedFile!.path)) {
       fileIcon = Icons.image;
-      previewWidget = Image.file(selectedFile!, height: 100, width: 100, fit: BoxFit.cover);
+      previewWidget = Image.file(
+        selectedFile!,
+        height: 100,
+        width: 100,
+        fit: BoxFit.cover,
+      );
     } else if (_isVideoFile(selectedFile!.path)) {
       fileIcon = Icons.videocam;
       if (_videoThumbnailPath != null) {
-        previewWidget = Image.file(File(_videoThumbnailPath!), height: 100, width: 100, fit: BoxFit.cover);
+        previewWidget = Image.file(
+          File(_videoThumbnailPath!),
+          height: 100,
+          width: 100,
+          fit: BoxFit.cover,
+        );
       } else {
         previewWidget = const SizedBox(
           height: 100,
           width: 100,
-          child: Center(child: CircularProgressIndicator()), // Indicateur de chargement de miniature
+          child: Center(
+            child: CircularProgressIndicator(),
+          ), // Indicateur de chargement de miniature
         );
       }
     } else {
       // Pour les autres types de fichiers (documents, etc.)
       // Vous pouvez ajouter plus de logique ici pour des icônes spécifiques
       // ou utiliser des packages comme `file_icon` si vous voulez des icônes plus détaillées.
-      fileIcon = _getFileIcon(fileName); // Utilise une fonction pour une icône plus spécifique
+      fileIcon = _getFileIcon(
+        fileName,
+      ); // Utilise une fonction pour une icône plus spécifique
       previewWidget = Icon(fileIcon, size: 80, color: Colors.grey[600]);
     }
 
@@ -190,7 +281,7 @@ class _SendPageState extends State<SendPage> {
           decoration: BoxDecoration(
             color: const Color.fromARGB(255, 184, 194, 216),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color.fromARGB(255, 107, 116, 138)!),
+            border: Border.all(color: const Color.fromARGB(255, 107, 116, 138)),
           ),
           child: Row(
             children: [
@@ -207,7 +298,10 @@ class _SendPageState extends State<SendPage> {
                   children: [
                     Text(
                       fileName,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 2,
                     ),
@@ -259,27 +353,19 @@ class _SendPageState extends State<SendPage> {
     return '${(bytes / (1 << (i * 10))).toStringAsFixed(2)} ${suffixes[i]}';
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Envoyer un fichier"),
-      ),
+      appBar: AppBar(title: const Text("Envoyer un fichier")),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
             DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-              ),
+              decoration: BoxDecoration(color: Theme.of(context).primaryColor),
               child: const Text(
                 'Choisir le mode d\'envoi',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 24),
               ),
             ),
             ListTile(
@@ -344,7 +430,10 @@ class _SendPageState extends State<SendPage> {
                   if (_ipController.text.isNotEmpty) {
                     _sendFile(_ipController.text);
                   } else {
-                    _showSnackBar('Veuillez entrer une adresse IP.', Colors.orange);
+                    _showSnackBar(
+                      'Veuillez entrer une adresse IP.',
+                      Colors.orange,
+                    );
                   }
                 },
                 icon: const Icon(Icons.send),
@@ -362,35 +451,36 @@ class _SendPageState extends State<SendPage> {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: discoveredServers.isEmpty
-                    ? const Center(
-                        child: Text(
-                          "Aucun serveur détecté...\nAssurez-vous qu'un serveur écoute sur le port 5001.",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: discoveredServers.length,
-                        itemBuilder: (context, index) {
-                          final ip = discoveredServers[index];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(vertical: 5),
-                            elevation: 2,
-                            child: ListTile(
-                              title: Text("📶 Serveur sur $ip"),
-                              trailing: ElevatedButton(
-                                onPressed: () => _sendFile(ip),
-                                child: const Text("Envoyer"),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  foregroundColor: Colors.white,
+                child:
+                    discoveredServers.isEmpty
+                        ? const Center(
+                          child: Text(
+                            "Aucun serveur détecté...\nAssurez-vous qu'un serveur écoute sur le port 8889.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                        : ListView.builder(
+                          itemCount: discoveredServers.length,
+                          itemBuilder: (context, index) {
+                            final ip = discoveredServers[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(vertical: 5),
+                              elevation: 2,
+                              child: ListTile(
+                                title: Text("📶 Serveur sur $ip"),
+                                trailing: ElevatedButton(
+                                  onPressed: () => _sendFile(ip),
+                                  child: const Text("Envoyer"),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          },
+                        ),
               ),
             ],
           ],

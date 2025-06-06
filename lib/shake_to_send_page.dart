@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:sensors_plus/sensors_plus.dart';
 
 import 'home_page.dart';
@@ -109,21 +110,31 @@ class _ShakeToSendPageState extends State<ShakeToSendPage> {
   }
 
   void handleSendFile(String? ip, File file) async {
+    if (ip == null) return;
+
     try {
       final socket = await Socket.connect(
         ip,
         5000,
         timeout: const Duration(seconds: 10),
-      ); // port à adapter
+      );
+
+      final fileName = p.basename(file.path); // Extrait le nom du fichier
+
+      // 1. Envoyer le nom du fichier suivi d’un saut de ligne
+      socket.write('$fileName\n');
+
+      // 2. Envoyer les octets du fichier
       final stream = file.openRead();
       await stream.pipe(socket);
+
       await socket.flush();
       await socket.close();
       socket.destroy();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('✅ Fichier envoyé à $ip')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('✅ Fichier "$fileName" envoyé à $ip')),
+      );
 
       Navigator.pushReplacement(
         context,
