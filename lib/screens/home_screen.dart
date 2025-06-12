@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shareapp/models/app_file.dart';
+import 'package:shareapp/screens/receive_screen/receive_screen.dart';
 import 'package:shareapp/screens/send_files_screen/send_files_screen.dart';
 import 'package:shareapp/widgets/action_buttons_fab.dart';
 import 'package:shareapp/widgets/custom_tab_bar.dart';
@@ -280,7 +281,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               label: 'RECEVOIR',
               onPressed: () {
                 _toggleActionButtons();
-                
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ReceiveScreen()),
+                );
               },
             ),
             const SizedBox(height: 10.0),
