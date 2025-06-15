@@ -1,7 +1,6 @@
 import 'dart:async'; // Pour Timer
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:collection/collection.dart'; // Pour firstWhereOrNull si non déjà importé
 
 import 'shake_to_send_page.dart'; // Assurez-vous que ce chemin est correct
 
@@ -15,20 +14,17 @@ class DiscoveryPage extends StatefulWidget {
 }
 
 class _DiscoveryPageState extends State<DiscoveryPage> {
-  // Utilisez un Map pour stocker les appareils découverts avec un horodatage
-  // Cela permet de nettoyer les anciens appareils si nécessaire.
   final Map<String, _DiscoveredDevice> _devices = {};
   RawDatagramSocket? _socket;
-  Timer? _cleanupTimer; // Timer pour le nettoyage des anciens appareils
+  Timer? _cleanupTimer;
 
   @override
   void initState() {
     super.initState();
     _startListening();
-    _startCleanupTimer(); // Démarre le nettoyage périodique
+    _startCleanupTimer();
   }
 
-  // Cette simulation est utile pour le développement, gardez-la si vous voulez.
   void _simulateDiscovery() {
     final simulated = _DiscoveredDevice(name: "Simulated Device", ip: "192.168.1.102");
     if (!_devices.containsKey(simulated.ip)) {
@@ -36,18 +32,17 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
         _devices[simulated.ip] = simulated;
       });
     } else {
-      _devices[simulated.ip]!.updateLastSeen(); // Simule une mise à jour
+      _devices[simulated.ip]!.updateLastSeen();
     }
   }
 
   void _startListening() async {
     try {
       _socket = await RawDatagramSocket.bind(
-        InternetAddress.anyIPv4, // Écoute sur toutes les interfaces
-        8889, // Port d'écoute pour les annonces de serveurs
+        InternetAddress.anyIPv4,
+        8889,
         reuseAddress: true,
       );
-      // Assurez-vous que le broadcast est activé pour pouvoir recevoir des paquets broadcastés
       _socket!.broadcastEnabled = true;
 
       debugPrint('DiscoveryPage: Démarrage de l\'écoute UDP sur ${_socket!.address.address}:${_socket!.port}');
@@ -65,23 +60,19 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
 
           debugPrint('DiscoveryPage: Message UDP reçu: "$message" de $senderIp');
 
-          // Le message attendu est "FILE_SERVER_HERE|IP_DU_SERVEUR"
           if (message.startsWith('FILE_SERVER_HERE|')) {
             final parts = message.split('|');
             if (parts.length == 2) {
-              final serverIp = parts[1]; // C'est l'IP que le serveur annonçait
-              // Si le message venait d'une autre IP que celle annoncée, utilisez senderIp ou serverIp selon votre besoin
-              // Pour la détection, serverIp est l'IP que le récepteur a déclarée
+              final serverIp = parts[1];
               final String ipToUse = serverIp; 
-              
               if (!_devices.containsKey(ipToUse)) {
                 setState(() {
                   _devices[ipToUse] = _DiscoveredDevice(name: 'Serveur ${ipToUse.split('.').last}', ip: ipToUse);
-                  debugPrint('DiscoveryPage: Nouveau serveur détecté: ${ipToUse}');
+                  debugPrint('DiscoveryPage: Nouveau serveur détecté: $ipToUse');
                 });
               } else {
                 _devices[ipToUse]!.updateLastSeen(); // Met à jour le timestamp pour garder l'appareil dans la liste
-                debugPrint('DiscoveryPage: Serveur existant mis à jour: ${ipToUse}');
+                debugPrint('DiscoveryPage: Serveur existant mis à jour: $ipToUse');
               }
             } else {
               debugPrint('DiscoveryPage: Message UDP reçu au format incorrect: "$message"');
@@ -114,7 +105,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             .toList();
 
         for (var key in expiredKeys) {
-          debugPrint('DiscoveryPage: Nettoyage du serveur expiré: ${key}');
+          debugPrint('DiscoveryPage: Nettoyage du serveur expiré: $key');
           _devices.remove(key);
         }
       });
@@ -133,15 +124,11 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
       context,
       MaterialPageRoute(
         builder: (_) => ShakeToSendPage(
-          // Passe seulement l'IP de l'appareil sélectionné, pas tous les découverts
           discoveredServers: [selected.ip], 
           hasFileSelected: true,
           fileToSend: widget.file,
           onSendFile: (ip, file) {
             debugPrint("📤 Envoi du fichier ${file.path} à $ip");
-            // Ici, vous appelez votre fonction sendFile, qui sera dans ShakeToSendPage
-            // ou un service qu'elle utilise.
-            // Le sendFile réel sera exécuté via le callback de ShakeToSendPage.
           },
         ),
       ),
@@ -157,7 +144,6 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           : ListView.builder(
               itemCount: _devices.length,
               itemBuilder: (context, index) {
-                // Affiche les appareils par ordre alphabétique des IPs
                 final device = _devices.values.toList()..sort((a, b) => a.ip.compareTo(b.ip));
                 final currentDevice = device[index];
                 return Card( // Utilisation d'une Card pour un meilleur visuel
@@ -185,7 +171,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
 class _DiscoveredDevice {
   final String name;
   final String ip;
-  DateTime lastSeen; // Ajout d'un timestamp
+  DateTime lastSeen;
 
   _DiscoveredDevice({required this.name, required this.ip}) : lastSeen = DateTime.now();
 
@@ -193,7 +179,6 @@ class _DiscoveredDevice {
     lastSeen = DateTime.now();
   }
 
-  // Pour une meilleure comparaison dans un Map, bien que la clé IP soit déjà unique
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

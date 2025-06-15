@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shareapp/saves/home_page.dart';
 import 'package:shareapp/screens/home_screen.dart'; // Assurez-vous que le chemin est correct
 
 void main() {
@@ -77,7 +78,7 @@ class MyApp extends StatelessWidget {
         ),
         // Ajoutez d'autres styles comme TextStyle, IconThemeData, etc. si nécessaire
       ),
-      home: const HomeScreen(),
+      home: const HomePage(),
     );
   }
 }

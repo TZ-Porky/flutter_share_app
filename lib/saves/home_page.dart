@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'discovery_page.dart';
 import 'file_selection_page.dart';
 import 'receive_page.dart';
 import 'send_page.dart'; // Nous allons créer ce fichier
